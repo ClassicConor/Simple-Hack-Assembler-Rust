@@ -48,7 +48,13 @@ fn read_file_in(filename: &str) -> Result<Vec<String>, Error> {
     let contents: String = fileRead::read_to_string(filename)?;
     let lines: Vec<String> = contents
         .lines()
-        .map(|line| line.trim().to_string().replace(" ", "").to_uppercase())
+        .map(|line| {
+            line.trim()
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+                .to_uppercase()
+        })
         .collect();
     Ok(lines)
 }
@@ -64,7 +70,6 @@ fn go_through_lines(lines: Vec<String>) {
         }
 
         let binary_instruction: String;
-
         let instruction: String = line.chars().take(3).collect();
         let rest: String = line.chars().skip(3).collect();
 
@@ -80,9 +85,13 @@ fn go_through_lines(lines: Vec<String>) {
             _ => continue,
         }
 
-        // println!("{}", binary_instruction);
+        if binary_instruction == "Crash" {
+            break;
+        }
 
-        list_of_instructions.push(binary_instruction);
+        if binary_instruction != "" {
+            list_of_instructions.push(binary_instruction);
+        }
     }
 
     for instruction in list_of_instructions {
@@ -117,7 +126,7 @@ fn sub_function(rest: &str) -> String {
     let target_binary: &str = &get_target_binary(target);
     let access_binary: &str = &get_access_binary(access);
 
-    let combined_sub_binary: String = format!("111{}010011{}000", target_binary, access_binary);
+    let combined_sub_binary: String = format!("111{}010011{}000", access_binary, target_binary);
 
     return combined_sub_binary;
 }
@@ -136,7 +145,11 @@ fn jump_instruction(instruction: &str, rest: &str) -> String {
 fn str_function(rest: &str) -> String {
     let split_chars: Vec<&str> = rest.split(",").collect();
 
-    let access_binary: &str = &get_access_binary(split_chars[0]);
+    if split_chars[0] != "(A)" {
+        return "".to_string();
+    }
+
+    let access_binary: &str = &get_access_binary(split_chars[1]);
     let src_binary: &str = &get_src_binary(split_chars[1]);
 
     let combined_str_binary: String = format!("111{}{}001000", access_binary, src_binary);
@@ -149,16 +162,25 @@ fn ldr_function(rest: &str) -> String {
 
     if split_chars[0] == "A" && split_chars[1].chars().next() == Some('$') {
         return ldr_number_binary(split_chars[1]);
-    } else {
+    } else if split_chars[0] == "(A)" {
+        return "Crash".to_string();
+    } else if split_chars[1].chars().next() != Some('$') {
         return ldr_source_value(split_chars[0], split_chars[1]);
+    } else {
+        return "".to_string();
     }
 }
 
 fn ldr_number_binary(binary_number: &str) -> String {
     let number_string: String = binary_number.chars().skip(1).collect();
     let number: i32 = number_string.parse().unwrap();
-    let binary_number: String = format!("{:016b}", number);
-    return binary_number;
+
+    if 0 <= number && number <= 32767 {
+        let binary_number: String = format!("{:016b}", number);
+        return binary_number;
+    } else {
+        return "".to_string();
+    }
 }
 
 fn ldr_source_value(target: &str, src: &str) -> String {
