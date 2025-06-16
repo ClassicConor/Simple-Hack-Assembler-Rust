@@ -1,0 +1,6 @@
+				ldr D, (A)
+				sub D, D, (A)
+				jgt D
+				ldr D, (A)
+				jmp
+				str (A), D
